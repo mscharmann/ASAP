@@ -27,8 +27,9 @@ clone this repo
 git clone https://github.com/mscharmann/ASAP
 ```
 
-download this helper script to directory "scripts"
+move into ASAP dir and download this helper script to directory "scripts"
 ```
+cd ASAP
 wget -P scripts/ https://gist.githubusercontent.com/travc/0c53df2c8eca81c3ebc36616869930ec/raw/eff3032ca7c955ca33bffd8758092e4006949c75/split_ref_by_bai_datasize.py
 ```
 
