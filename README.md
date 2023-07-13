@@ -238,4 +238,5 @@ in the end, clean up and move all simulated reads to data/
 ```
 gzip *.fastq
 mv *.fastq.gz data/
+rm data/*.fai data/*.diploid.fa
 ```
