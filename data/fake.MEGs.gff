@@ -1,0 +1,43 @@
+##gff-version	03.01.26
+## gene_7
+fake_chromosome	.	gene	301000	309000	.	+	.	ID=gene00007;Name=gene_7
+fake_chromosome	.	mRNA	301050	309000	.	+	.	ID=mRNA00007;Parent=gene00007;Name=gene_7
+fake_chromosome	.	CDS	301201	301500	.	+	0	ID=cds000001;Parent=mRNA00007;Name=protein_7
+fake_chromosome	.	CDS	303000	303902	.	+	0	ID=cds000002;Parent=mRNA00007;Name=protein_7
+fake_chromosome	.	CDS	305000	305900	.	+	0	ID=cds000003;Parent=mRNA00007;Name=protein_7
+fake_chromosome	.	CDS	307000	309998	.	+	0	ID=cds000004;Parent=mRNA00007;Name=protein_7
+## gene_8
+fake_chromosome	.	gene	351000	359000	.	+	.	ID=gene00008;Name=gene_8
+fake_chromosome	.	mRNA	351050	359000	.	+	.	ID=mRNA00008;Parent=gene00008;Name=gene_8
+fake_chromosome	.	CDS	351201	351500	.	+	0	ID=cds000001;Parent=mRNA00008;Name=protein_8
+fake_chromosome	.	CDS	353000	353902	.	+	0	ID=cds000002;Parent=mRNA00008;Name=protein_8
+fake_chromosome	.	CDS	355000	355900	.	+	0	ID=cds000003;Parent=mRNA00008;Name=protein_8
+fake_chromosome	.	CDS	357000	359998	.	+	0	ID=cds000004;Parent=mRNA00008;Name=protein_8
+## gene_9
+fake_chromosome	.	gene	401000	409000	.	+	.	ID=gene00009;Name=gene_9
+fake_chromosome	.	mRNA	401050	409000	.	+	.	ID=mRNA00009;Parent=gene00009;Name=gene_9
+fake_chromosome	.	CDS	401201	401500	.	+	0	ID=cds000001;Parent=mRNA00009;Name=protein_9
+fake_chromosome	.	CDS	403000	403902	.	+	0	ID=cds000002;Parent=mRNA00009;Name=protein_9
+fake_chromosome	.	CDS	405000	405900	.	+	0	ID=cds000003;Parent=mRNA00009;Name=protein_9
+fake_chromosome	.	CDS	407000	409998	.	+	0	ID=cds000004;Parent=mRNA00009;Name=protein_9
+## gene_10
+fake_chromosome	.	gene	451000	459000	.	+	.	ID=gene000010;Name=gene_10
+fake_chromosome	.	mRNA	451050	459000	.	+	.	ID=mRNA000010;Parent=gene000010;Name=gene_10
+fake_chromosome	.	CDS	451201	451500	.	+	0	ID=cds000001;Parent=mRNA000010;Name=protein_10
+fake_chromosome	.	CDS	453000	453902	.	+	0	ID=cds000002;Parent=mRNA000010;Name=protein_10
+fake_chromosome	.	CDS	455000	455900	.	+	0	ID=cds000003;Parent=mRNA000010;Name=protein_10
+fake_chromosome	.	CDS	457000	459998	.	+	0	ID=cds000004;Parent=mRNA000010;Name=protein_10
+## gene_11
+fake_chromosome	.	gene	501000	509000	.	+	.	ID=gene000011;Name=gene_11
+fake_chromosome	.	mRNA	501050	509000	.	+	.	ID=mRNA000011;Parent=gene000011;Name=gene_11
+fake_chromosome	.	CDS	501201	501500	.	+	0	ID=cds000001;Parent=mRNA000011;Name=protein_11
+fake_chromosome	.	CDS	503000	503902	.	+	0	ID=cds000002;Parent=mRNA000011;Name=protein_11
+fake_chromosome	.	CDS	505000	505900	.	+	0	ID=cds000003;Parent=mRNA000011;Name=protein_11
+fake_chromosome	.	CDS	507000	509998	.	+	0	ID=cds000004;Parent=mRNA000011;Name=protein_11
+## gene_12
+fake_chromosome	.	gene	551000	559000	.	+	.	ID=gene000012;Name=gene_12
+fake_chromosome	.	mRNA	551050	559000	.	+	.	ID=mRNA000012;Parent=gene000012;Name=gene_12
+fake_chromosome	.	CDS	551201	551500	.	+	0	ID=cds000001;Parent=mRNA000012;Name=protein_12
+fake_chromosome	.	CDS	553000	553902	.	+	0	ID=cds000002;Parent=mRNA000012;Name=protein_12
+fake_chromosome	.	CDS	555000	555900	.	+	0	ID=cds000003;Parent=mRNA000012;Name=protein_12
+fake_chromosome	.	CDS	557000	559998	.	+	0	ID=cds000004;Parent=mRNA000012;Name=protein_12

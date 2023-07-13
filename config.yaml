@@ -1,0 +1,14 @@
+genomefile: "data/fakegenome.ref.fa"
+gff: "data/fake.ALL.gff"
+samples_units_fqs_map: "data/samples_units_readfiles.txt"
+pedigree_file: "data/pedigree.txt"
+
+
+# bcftools jobs will be split to run on chunks of the data with equal size.
+varcall_chunksize: 10490000
+
+# VCF variant filtering options
+VCF_QUAL: 20
+
+# minimum read depth to consider a site (variant or invariant)
+MIN_DEPTH: 6

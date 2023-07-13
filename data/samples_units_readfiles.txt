@@ -1,0 +1,7 @@
+sample	unit	fq1	fq2
+parent1	1	data/parent1.1.fastq.gz	
+parent2	1	data/parent2.1.fastq.gz	data/parent2.2.fastq.gz
+progeny1	1	data/progeny1.1.fastq.gz	data/progeny1.2.fastq.gz
+progeny2	1	data/progeny2.1.fastq.gz	data/progeny2.2.fastq.gz
+progeny3	1	data/progeny3.gklb486.1.fastq.gz	data/progeny3.gklb486.2.fastq.gz
+progeny3	2	data/progeny3.qwrtzy123.1.fastq.gz	data/progeny3.qwrtzy123.2.fastq.gz
