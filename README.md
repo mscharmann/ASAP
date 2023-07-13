@@ -40,7 +40,7 @@ wget -P scripts/ https://gist.githubusercontent.com/travc/0c53df2c8eca81c3ebc366
 
 - the repo comes with some simulated test data (see below to repeat the simulation). Use this to test your installation, or remove it like so:
 ```
-rm data/*.fa data/*.fq.gz
+rm data/fake* data/*.fastq.gz
 ```
 
 ## 1. run pipeline
