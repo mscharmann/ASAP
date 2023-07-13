@@ -90,7 +90,7 @@ rule hisat2_map:
 				# -F 2048 == -F 0x800 == NOT supplementary alignment
 				# sum of the bit flags: 2304 => filters against BOTH non-primary and supplementary alignments; verified with samtools flagstat
 				# filtering against multi-mapping alignments (which have MAPQ=0): -q 1
-				hisat2 --threads {threads} -x {input.gidx}/hisat2_index --mp 2,2 -1 {input.reads[0]} -2 {input.reads[1]} --rg ID:{wildcards.sample} --rg SM:{wildcards.sample} --rg PL:Illumina | samtools view -F 2304 -q 1 -b -@ 2 - > {output}
+				hisat2 --threads {threads} -x {input.gidx}/hisat2_index -1 {input.reads[0]} -2 {input.reads[1]} --rg ID:{wildcards.sample} --rg SM:{wildcards.sample} --rg PL:Illumina | samtools view -F 2304 -q 1 -b -@ 2 - > {output}
 				""")
 		else: # single-end
 			shell("""
@@ -101,7 +101,7 @@ rule hisat2_map:
 				# -F 4 read unmapped (0x4)
 				# sum of the bit flags: 2308 => filters against non-primary and supplementary alignments and unmapped
 				# filtering against multi-mapping alignments (which have MAPQ=0): -q 1
-				hisat2 --threads {threads} -x {input.gidx}/hisat2_index --mp 2,2 -U {input.reads[0]} --rg ID:{wildcards.sample} --rg SM:{wildcards.sample} --rg PL:Illumina | samtools view -F 2308 -q 1 -b -@ 2 - > {output}
+				hisat2 --threads {threads} -x {input.gidx}/hisat2_index -U {input.reads[0]} --rg ID:{wildcards.sample} --rg SM:{wildcards.sample} --rg PL:Illumina | samtools view -F 2308 -q 1 -b -@ 2 - > {output}
 				""")
 
 
