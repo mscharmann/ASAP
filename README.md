@@ -103,7 +103,7 @@ with open("data/parent2.diploid.fa", "w") as O:
 	O.write(h4 + "\n")
 
 # now simulate the progeny's genomes; their haplotypes are produced by cross-over between the parent's haplotypes
-with open("progeny1.diploid.fa", "w") as O:
+with open("data/progeny1.diploid.fa", "w") as O:
 	O.write(">data/fake_chromosome_1" + "\n")
 	co = np.random.choice(range(length_of_the_chrom), 1)[0]
 	O.write(h1[:co] + h2[co:] + "\n")
