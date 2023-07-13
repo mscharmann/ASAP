@@ -51,9 +51,9 @@ snakemake -j 48 --restart-times 3 --keep-going --rerun-incomplete
 ```
 - else on clusters with job submission systems like SLURM or LSF, use an appropriate snakemake command
 
-## N. Simulate test data
-- fake GFFs are provided, made by hand: data/fake.*.gff
-- python, gffread and wgsim (from samtools) are used to simulate genomes and sequencing data
+## N. simulation of test data
+- fake GFFs were made by hand: data/fake.*.gff
+- python, gffread and wgsim (from samtools) were used to simulate genomes and sequencing data
 ```
 import numpy as np
 

@@ -1,4 +1,0 @@
-mother	father	progeny	expected_maternal_proportion	type_of_sample
-parent1	parent2	progeny1	0.666667	individual
-parent2	parent1	progeny2	0.666667	pool
-parent1	parent2	progeny3	0.5	individual
