@@ -17,8 +17,8 @@ outputs:
 ## 0. setup
 create a conda environment
 ```
-conda create --name imprinting
-conda activate imprinting
+conda create --name ASAP
+conda activate ASAP
 
 conda install snakemake samtools seqtk bcftools bedtools tabix pigz hisat2 scipy "vcflib=1.0.3" -y
 ```
