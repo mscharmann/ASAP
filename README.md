@@ -3,7 +3,7 @@ Allele-Specific Abundance and imPrinting pipeline
 
 inputs:
 - reference genome
-- GFF including features named "gene" (these could be actual genes, or anything else).
+- GFF structural annotation file including features named "gene" (these could be actual genes, or anything else). Must validate that your GFF has these features.
 - sequencing reads for progenies and their parents (can be either RNA-seq or DNA-seq, single or paired-end data). One or multiple read file units per sample are possible.
 - info about the samples: pedigree, pool/individual and expected maternal read proportion
 
@@ -11,8 +11,8 @@ outputs:
 - mapped reads by HISAT2 in .BAM format
 - read mapping statistics
 - variants in .VCF format
-- SNP-level parental allele counts for each progeny
-- gene-level parental allele statistics for each progeny, including chi-squared test for deviation from expected maternal proportion
+- SNP-level parental allele counts for each progeny, classified by how they were informative.
+- gene-level parental allele statistics for each progeny, including chi-squared test for deviation from expected maternal proportion, done on the counts of parental alleles (mean count over all informative bi-allelic SNPs per gene)
 
 ## 0. setup
 create a conda environment
@@ -33,7 +33,7 @@ cd ASAP
 wget -P scripts/ https://gist.githubusercontent.com/travc/0c53df2c8eca81c3ebc36616869930ec/raw/eff3032ca7c955ca33bffd8758092e4006949c75/split_ref_by_bai_datasize.py
 ```
 
-## 0. prepare
+## 1. prepare
 - adjust parameters and input files in config.yaml
 - set up the input read files to samples map in "data/samples_units_readfiles.txt"
 - set up "data/pedigree.txt" with info about the pedigree, type of sample and expected maternal read proportion
@@ -43,15 +43,16 @@ wget -P scripts/ https://gist.githubusercontent.com/travc/0c53df2c8eca81c3ebc366
 rm data/fake* data/*.fastq.gz
 ```
 
-## 1. run pipeline
+## 2. run pipeline
 - work within the above conda environment
+- most time-consuming is the HISAT2 mapping step. Runs on up to 12 threads per sample.
 - locally do:
 ```
 snakemake -j 48 --restart-times 3 --keep-going --rerun-incomplete
 ```
 - else on clusters with job submission systems like SLURM or LSF, use an appropriate snakemake command
 
-## N. simulation of test data
+## simulation of test data
 - fake GFFs were made by hand: data/fake.*.gff
 - python, gffread and wgsim (from samtools) were used to simulate genomes and sequencing data
 ```
