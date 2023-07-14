@@ -61,7 +61,7 @@ rule bwa_idx:
 	   genomefile
 	output:
 		"bwa_index/reference.fa.bwt",
-		"bwa_index/reference.fa
+		"bwa_index/reference.fa"
 	shell:
 		"""
 		if [[ ! $( grep ">" {input} ) =~ "|" ]]; then
