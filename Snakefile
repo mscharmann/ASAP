@@ -185,6 +185,7 @@ rule call_variants:
 			bcftools mpileup -Ou -f {input.ref} -R {input.regions}.gff_intersected.bed --bam-list <( ls mapped_reads/*.bam ) --max-depth 1000 --min-MQ 20 --min-BQ 15 --no-BAQ -a INFO/AD -a FORMAT/AD | bcftools call -m --variants-only --skip-variants indels -Ov | bgzip -c > {output}
 		else
 			touch {output}
+		fi
 		rm {input.regions}.gff_intersected.bed
 		"""
 
