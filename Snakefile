@@ -187,7 +187,7 @@ rule call_variants:
 			# input region is empty, therefore run without a specific region but return the HEADER of the VCF only, then terminate. VCF with at least the header are required for downstream; empty files will break pipeline.
 			# ensure that output directory exists..
 			mkdir -p varcall_chunk_VCFs
-			bcftools mpileup -Ou -f {input.ref} --bam-list <( ls mapped_reads/*.bam ) --max-depth 1000 --min-MQ 20 --min-BQ 15 --no-BAQ -a INFO/AD -a FORMAT/AD | bcftools call -m --variants-only --skip-variants indels -Ov | awk '{{if ($1 == "#CHROM")  {{print ; exit;}} else print}}' | bgzip -c > {output}
+			bcftools mpileup -Ou -f {input.ref} --bam-list <( ls mapped_reads/*.bam ) --max-depth 1000 --min-MQ 20 --min-BQ 15 --no-BAQ -a INFO/AD -a FORMAT/AD | bcftools call -m --variants-only --skip-variants indels -Ov | awk '{{if ($1 == "#CHROM")  {{print ; exit;}} else print}}' | bgzip -c >  {output}
 		fi
 		rm {input.regions}.gff_intersected.bed
 		"""
