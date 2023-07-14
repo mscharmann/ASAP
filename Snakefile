@@ -56,33 +56,34 @@ rule all:
 		os.system( "rm -r mapped_reads_per_unit" )
 
 
-rule hisat2_idx:
+rule bwa_idx:
 	input:
 	   genomefile
 	output:
-		directory("hisat2_index")
-	threads: 12
+		"bwa_index/reference.fa.bwt",
+		"bwa_index/reference.fa
 	shell:
 		"""
 		if [[ ! $( grep ">" {input} ) =~ "|" ]]; then
-			mkdir {output}
-			hisat2-build -p {threads} {input} {output}/hisat2_index
+			mkdir -p bwa_index
+			cd bwa_index
+			cp {input} ./reference.fa
+			bwa index reference.fa
 		else
 			echo "refusing to run, fasta headers contain pipe '|' character, dying"
 		fi
 		"""
 
-rule hisat2_map:
+rule bwa_map:
 	input:
-		fa=genomefile,
-		gidx="hisat2_index",
+		fa="bwa_index/reference.fa",
+		gidx="bwa_index/reference.fa.bwt",
 		reads=get_fastq_sample_unit
 	output:
 		temp("mapped_reads_per_unit/{sample}-{unit}.bam")
-	threads: 12
+	threads: 16
 	run:
 		if len(input.reads) == 2: # paired-end!
-			# FOR REAL DATA, MUST REMOVE the mismathc scoring option --mp 2,2 for Hisat2. This only makes sense because of the constant Phred score output by wgsim for simulated reads.
 			shell("""
 				# filtering alignments to be primary (i.e. each read only once; if multiple locations equally possible than a random one is chosen):
 				# -F 256 == -F 0x0100 == NOT not primary alignment
@@ -90,7 +91,7 @@ rule hisat2_map:
 				# -F 2048 == -F 0x800 == NOT supplementary alignment
 				# sum of the bit flags: 2304 => filters against BOTH non-primary and supplementary alignments; verified with samtools flagstat
 				# filtering against multi-mapping alignments (which have MAPQ=0): -q 1
-				hisat2 --threads {threads} -x {input.gidx}/hisat2_index -1 {input.reads[0]} -2 {input.reads[1]} --rg ID:{wildcards.sample} --rg SM:{wildcards.sample} --rg PL:Illumina | samtools view -F 2304 -q 1 -b -@ 2 - > {output}
+				bwa mem -t {threads} -a {input.fa} {input.reads[0]} {input.reads[1]} -R "@RG\\tID:{wildcards.sample}\\tSM:{wildcards.sample}\\tPL:Illumina" | samtools view -F 2304 -q 1 -b -@ 2 - > {output}
 				""")
 		else: # single-end
 			shell("""
@@ -101,7 +102,7 @@ rule hisat2_map:
 				# -F 4 read unmapped (0x4)
 				# sum of the bit flags: 2308 => filters against non-primary and supplementary alignments and unmapped
 				# filtering against multi-mapping alignments (which have MAPQ=0): -q 1
-				hisat2 --threads {threads} -x {input.gidx}/hisat2_index -U {input.reads[0]} --rg ID:{wildcards.sample} --rg SM:{wildcards.sample} --rg PL:Illumina | samtools view -F 2308 -q 1 -b -@ 2 - > {output}
+				bwa mem -t {threads} -a {input.fa} {input.reads[0]} -R "@RG\\tID:{wildcards.sample}\\tSM:{wildcards.sample}\\tPL:Illumina" | samtools view -F 2308 -q 1 -b -@ 2 - > {output}
 				""")
 
 
@@ -442,16 +443,17 @@ rule get_gene_level_parental_allele_counts:
 	shell:
 		"""
 		tail -n +2 {input.rawcounts} | awk '{{if($4 != "NA") print}}' | awk '{{print $1"\t"$2-1"\t"$2"\t"$4"\t"$5}}' | sort -k 1,1 -k2,2n > {input.rawcounts}.bedformat.bed
-		cat {input.gff} | awk '{{if($3 == "gene") print}}' > {input.rawcounts}.tmp.gff
+		cat {input.gff} | awk '{{if($3 == "gene") print}}' | bedtools sort > {input.rawcounts}.tmp.gff
 		bedtools intersect -a {input.rawcounts}.tmp.gff -b {input.rawcounts}.bedformat.bed -c > {input.rawcounts}.snpcounts
 		bedtools map -a {input.rawcounts}.tmp.gff -b {input.rawcounts}.bedformat.bed -c 4 -o mean > {input.rawcounts}.mat
 		bedtools map -a {input.rawcounts}.tmp.gff -b {input.rawcounts}.bedformat.bed -c 5 -o mean > {input.rawcounts}.pat
 
 		echo -e 'chrom\tstart\tend\tgene_name\tSNPs\tmean_maternal_count\tmean_paternal_count' > {output}
-		paste <(cut -f1,4,5,9,10 {input.rawcounts}.snpcounts) <(cut -f10 {input.rawcounts}.mat) <(cut -f10 {input.rawcounts}.pat) >> {output}
+		paste <(cut -f1,4,5,9,10 {input.rawcounts}.snpcounts) <(cut -f10 {input.rawcounts}.mat) <(cut -f10 {input.rawcounts}.pat) | awk '{{ if($5 == "0") {{ print $1"\t"$2"\t"$3"\t"$4"\t0\t0\t0" }} else {{ print}} }}' >> {output}
 		rm {input.rawcounts}.bedformat.bed {input.rawcounts}.tmp.gff {input.rawcounts}.snpcounts {input.rawcounts}.mat {input.rawcounts}.pat
 
 		"""
+
 
 rule get_gene_level_parental_allele_stats:
 	input:
@@ -482,5 +484,15 @@ rule get_gene_level_parental_allele_stats:
 		mydata["chisq_statistic"] = test_res[0].round(3)
 		mydata["p_value"] = test_res[1]
 		mydata["maternal_proportion"] = mydata["maternal_proportion"].round(4)
+
+		# if there were no SNPs, do not report chisq statistic and p-value as 0.0, but as NA. same for descriptive stats.
+		mydata["p_value"].mask(mydata["SNPs"] =="0" ,"NA", inplace=True)
+		mydata["chisq_statistic"].mask(mydata["SNPs"] =="0" ,"NA", inplace=True)
+
+		mydata["mean_maternal_count"].mask(mydata["SNPs"] =="0" ,"NA", inplace=True)
+		mydata["mean_paternal_count"].mask(mydata["SNPs"] =="0" ,"NA", inplace=True)
+		mydata["maternal_proportion"].mask(mydata["SNPs"] =="0" ,"NA", inplace=True)
+		mydata["maternal_expect"].mask(mydata["SNPs"] =="0" ,"NA", inplace=True)
+		mydata["paternal_expect"].mask(mydata["SNPs"] =="0" ,"NA", inplace=True)
 
 		mydata.to_csv(output[0], sep='\t', header=True, index=False)
