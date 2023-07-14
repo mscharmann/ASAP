@@ -3,9 +3,9 @@ Allele-Specific Abundance and imPrinting pipeline
 
 inputs:
 - reference genome
-- GFF structural annotation file including features named "gene" (these could be actual genes, or anything else). Must validate that your GFF has these features.
+- GFF structural annotation file including features named "gene" (these could be actual genes, or anything else). Must validate that the string "gene" appears in column 3 of your GFF.
 - sequencing reads for progenies and their parents (can be either RNA-seq or DNA-seq, single or paired-end data). One or multiple read file units per sample are possible.
-- info about the samples: pedigree, pool/individual and expected maternal read proportion
+- info about the samples: pedigree, pool/individual and expected maternal read proportion.
 
 outputs:
 - mapped reads by HISAT2 in .BAM format
@@ -36,7 +36,9 @@ wget -P scripts/ https://gist.githubusercontent.com/travc/0c53df2c8eca81c3ebc366
 ## 1. prepare
 - adjust parameters and input files in config.yaml
 - set up the input read files to samples map in "data/samples_units_readfiles.txt"
-- set up "data/pedigree.txt" with info about the pedigree, type of sample and expected maternal read proportion
+- set up "data/pedigree.txt" with info about the pedigree, 'type of sample' and 'expected maternal read proportion'.
+- 'expected maternal read proportion' can take any (float) value between 0 and 1, and is used in a chi-squared test with the observed parental counts.
+- 'type of sample' can take the values 'pool' or 'individual'. When 'type of sample' = 'individual', sites where only one parent is heterozygous will be used to score the parental contribution only if the progeny is also carrying two different alleles (with at least 3 counts each). In contrast, 'type of sample' = 'pool' here means that the progeny resulted from a large number of fertilization events between the two parents, for example when the endosperms from many seeds were combined. Therefore, and assuming that all steps from meioses to fertilisation involve random draws of the two parental alleles, both alleles from the heterozygous parent are expected to be present in the progenies' genomes. Hence, the contribution from the heterozygous parent to the progeny reads will be scored whether both alleles can be observed in the progeny or not, and a correction is applied. Specifically, the naive count in the progeny pool of the allele appearing only in the heterozygous parent should be a two-fold underestimation, and thus it is multiplied by 2 to get a corrected count (capped at the total count over both alleles for consistency). The count for the other parent is reduced accordingly. Thus, in a 'pool' progeny, more sites will be informative than in an 'individual' progeny, and extreme bias (complete absence of one parent's reads) could be more apparent. For the details, see code in the Snakefile under 'rule get_raw_parental_counts'.
 
 - the repo comes with some simulated test data (see below to repeat the simulation). Use this to test your installation, or remove it like so:
 ```
