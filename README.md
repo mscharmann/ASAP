@@ -8,7 +8,7 @@ inputs:
 - info about the samples: pedigree, pool/individual and expected maternal read proportion.
 
 outputs:
-- mapped reads by HISAT2 in .BAM format
+- mapped reads by BWA-MEM in .BAM format
 - read mapping statistics
 - variants in .VCF format
 - SNP-level parental allele counts for each progeny, classified by how they were informative.
@@ -20,7 +20,7 @@ create a conda environment
 conda create --name ASAP
 conda activate ASAP
 
-conda install snakemake samtools seqtk bcftools bedtools tabix pigz hisat2 scipy "vcflib=1.0.3" -y
+conda install snakemake samtools seqtk bcftools bedtools tabix pigz bwa scipy "vcflib=1.0.3" -y
 ```
 clone this repo
 ```
@@ -42,7 +42,7 @@ This should finish within 2 minutes. Check the output files in ```results```.
 - IMPORTANT: before making an actual run, DELETE ALL TEST INPUT AND OUTPUT
 ```
 rm data/fake* data/*.fastq.gz
-rm -r results mapped_reads hisat2_index
+rm -r results mapped_reads bwa_index
 rm -rf .snakemake
 ```
 
@@ -56,7 +56,7 @@ rm -rf .snakemake
 
 ## 3. run pipeline
 - work within the above conda environment
-- most time-consuming is the HISAT2 mapping step. Runs on up to 12 threads per sample.
+- most time-consuming is the BWA-MEM mapping step. Runs on up to 16 threads per sample.
 - locally do:
 ```
 snakemake -j 48 --restart-times 3 --keep-going --rerun-incomplete
