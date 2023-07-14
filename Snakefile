@@ -175,13 +175,16 @@ rule call_variants:
 		# call variants ONLY in GFF regions:
 		bedtools intersect -a {input.regions} -b {input.gff} | sort -k 1,1 -k2,2n | bedtools merge > {input.regions}.gff_intersected.bed
 
-		# --max-depth 1000: use at most 1000 reads per input BAM file, apparently these are sampled RANDOMLY!?
-		# --min-MQ 20: minimum mapping quality of an alignment, otherwise skip
-		# --no-BAQ : do NOT re-calculate mapping quality (which involves re-aligning). Instead, will use MAPQ as stored in BAM file.
-		# --min-BQ INT        skip bases with baseQ/BAQ smaller than INT [13]
-		# --variants-only
-
-		bcftools mpileup -Ou -f {input.ref} -R {input.regions}.gff_intersected.bed --bam-list <( ls mapped_reads/*.bam ) --max-depth 1000 --min-MQ 20 --min-BQ 15 --no-BAQ -a INFO/AD -a FORMAT/AD | bcftools call -m --variants-only --skip-variants indels -Ov | bgzip -c > {output}
+		# handle regions not overlapping with any genes, returning empty bed files for bcftools.
+		if [ -s {input.regions}.gff_intersected.bed ] ; then
+			# --max-depth 1000: use at most 1000 reads per input BAM file, apparently these are sampled RANDOMLY!?
+			# --min-MQ 20: minimum mapping quality of an alignment, otherwise skip
+			# --no-BAQ : do NOT re-calculate mapping quality (which involves re-aligning). Instead, will use MAPQ as stored in BAM file.
+			# --min-BQ INT        skip bases with baseQ/BAQ smaller than INT [13]
+			# --variants-only
+			bcftools mpileup -Ou -f {input.ref} -R {input.regions}.gff_intersected.bed --bam-list <( ls mapped_reads/*.bam ) --max-depth 1000 --min-MQ 20 --min-BQ 15 --no-BAQ -a INFO/AD -a FORMAT/AD | bcftools call -m --variants-only --skip-variants indels -Ov | bgzip -c > {output}
+		else
+			touch {output}
 		rm {input.regions}.gff_intersected.bed
 		"""
 
