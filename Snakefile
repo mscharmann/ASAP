@@ -66,8 +66,8 @@ rule bwa_idx:
 		"""
 		if [[ ! $( grep ">" {input} ) =~ "|" ]]; then
 			mkdir -p bwa_index
+			cp {input} bwa_index/reference.fa
 			cd bwa_index
-			cp {input} ./reference.fa
 			bwa index reference.fa
 		else
 			echo "refusing to run, fasta headers contain pipe '|' character, dying"
