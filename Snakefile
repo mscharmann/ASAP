@@ -284,7 +284,6 @@ rule count_reads_input_and_mapping:
 		mean_insert_size = "NA"
 		with open(input.bamfile +".stats.txt", "r") as I:
 			for line in I:
-				print (line)
 				if line.startswith("SN	reads mapped:"):
 					total_mapped = int(line.strip("\n").split()[-1])
 				if line.startswith("SN	insert size average:"):
