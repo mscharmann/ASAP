@@ -81,7 +81,7 @@ rule bwa_map:
 		reads=get_fastq_sample_unit
 	output:
 		temp("mapped_reads_per_unit/{sample}-{unit}.bam")
-	threads: 16
+	threads: 24
 	run:
 		if len(input.reads) == 2: # paired-end!
 			shell("""
@@ -91,7 +91,9 @@ rule bwa_map:
 				# -F 2048 == -F 0x800 == NOT supplementary alignment
 				# sum of the bit flags: 2304 => filters against BOTH non-primary and supplementary alignments; verified with samtools flagstat
 				# filtering against multi-mapping alignments (which have MAPQ=0): -q 1
-				bwa mem -t {threads} -a {input.fa} {input.reads[0]} {input.reads[1]} -R "@RG\\tID:{wildcards.sample}\\tSM:{wildcards.sample}\\tPL:Illumina" | samtools view -F 2304 -q 1 -b -@ 2 - > {output}
+				# OK, now actually retain the supplementary ones,
+				# NOT reduce seed length, mismatch and clipping penalities, lower min score to output in an attemt to map more erroneous / divergent reads: -k 18 -B 3 -L 4 -T 20
+				bwa mem -t {threads} -a {input.fa} {input.reads[0]} {input.reads[1]} -R "@RG\\tID:{wildcards.sample}\\tSM:{wildcards.sample}\\tPL:Illumina" | samtools view -F 256 -q 1 -b -@ 2 - > {output}
 				""")
 		else: # single-end
 			shell("""
@@ -102,7 +104,8 @@ rule bwa_map:
 				# -F 4 read unmapped (0x4)
 				# sum of the bit flags: 2308 => filters against non-primary and supplementary alignments and unmapped
 				# filtering against multi-mapping alignments (which have MAPQ=0): -q 1
-				bwa mem -t {threads} -a {input.fa} {input.reads[0]} -R "@RG\\tID:{wildcards.sample}\\tSM:{wildcards.sample}\\tPL:Illumina" | samtools view -F 2308 -q 1 -b -@ 2 - > {output}
+				# NOT reduce seed length, mismatch and clipping penalities, lower min score to output in an attemt to map more erroneous / divergent reads: -k 18 -B 3 -L 4 -T 20
+				bwa mem -t {threads} -a {input.fa} {input.reads[0]} -R "@RG\\tID:{wildcards.sample}\\tSM:{wildcards.sample}\\tPL:Illumina" | samtools view -F 256 -q 1 -b -@ 2 - > {output}
 				""")
 
 
@@ -178,17 +181,17 @@ rule call_variants:
 
 		# handle regions not overlapping with any genes, returning empty bed files for bcftools.
 		if [ -s {input.regions}.gff_intersected.bed ] ; then
-			# --max-depth 1000: use at most 1000 reads per input BAM file, apparently these are sampled RANDOMLY!?
-			# --min-MQ 20: minimum mapping quality of an alignment, otherwise skip
-			# --no-BAQ : do NOT re-calculate mapping quality (which involves re-aligning). Instead, will use MAPQ as stored in BAM file.
-			# --min-BQ INT        skip bases with baseQ/BAQ smaller than INT [13]
+			# NOT --max-depth 1000: use at most 1000 reads per input BAM file, apparently these are sampled RANDOMLY!?
+			# NOT --min-MQ 20: minimum mapping quality of an alignment, otherwise skip
+			# NOT --no-BAQ : do NOT re-calculate mapping quality (which involves re-aligning). Instead, will use MAPQ as stored in BAM file.
+			# NOT --min-BQ INT        skip bases with baseQ/BAQ smaller than INT [1]
 			# --variants-only
-			bcftools mpileup -Ou -f {input.ref} -R {input.regions}.gff_intersected.bed --bam-list <( ls mapped_reads/*.bam ) --min-MQ 20 --min-BQ 15 --no-BAQ -a INFO/AD -a FORMAT/AD | bcftools call -m --variants-only --skip-variants indels -Ov | bgzip -c > {output}
+			bcftools mpileup -Ou -f {input.ref} -R {input.regions}.gff_intersected.bed --bam-list <( ls mapped_reads/*.bam ) --min-MQ 0 --min-BQ 1 -a DP -a INFO/AD -a FORMAT/AD | bcftools call -m --variants-only --skip-variants indels -Ov | bgzip -c > {output}
 		else
 			# input region is empty, therefore run without a specific region but return the HEADER of the VCF only, then terminate. VCF with at least the header are required for downstream; empty files will break pipeline.
 			# ensure that output directory exists.. and force return exist status 0, otherwise it will often break. Unclear why.
 			mkdir -p varcall_chunk_VCFs
-			bcftools mpileup -Ou -f {input.ref} --bam-list <( ls mapped_reads/*.bam ) --min-MQ 20 --min-BQ 15 --no-BAQ -a INFO/AD -a FORMAT/AD | bcftools call -m --variants-only --skip-variants indels -Ov | awk '{{if ($1 == "#CHROM")  {{print ; exit;}} else print}}' | bgzip -c > {output} 2>&1 || true
+			bcftools mpileup -Ou -f {input.ref} --bam-list <( ls mapped_reads/*.bam ) --min-MQ 0 --min-BQ 1 -a DP -a INFO/AD -a FORMAT/AD | bcftools call -m --variants-only --skip-variants indels -Ov | awk '{{if ($1 == "#CHROM")  {{print ; exit;}} else print}}' | bgzip -c > {output} 2>&1 || true
 		fi
 		rm {input.regions}.gff_intersected.bed
 		"""
@@ -236,7 +239,7 @@ rule VCF_filter_variants:
 		## https://bcbio.wordpress.com/2013/10/21/updated-comparison-of-variant-detection-methods-ensemble-freebayes-and-minimal-bam-preparation-pipelines/#comment-1469
 		## => "We use ... a very vanilla filter with only depth and quality (QUAL < 20, DP < 5)"
 		## => impose a minimum of QUAL, and a minimum of DEPTH
-		## 	NOT applying maximum DPETH cutoff
+		## 	NOT applying maximum DEPTH cutoff
 		## mac = minimum minor allele count: 2, because singletons are not relevant here (informative variants must occur in at least one parent and its progeny)
 		## keep only bi-alleleic sites: --min-alleles 2 --max-alleles 2
 
@@ -275,11 +278,16 @@ rule count_reads_input_and_mapping:
 		temp( "results/{sample}.raw_and_mapped_reads_report.txt" )
 	threads: 3
 	run:
-		cmd = "samtools flagstat " + input.bamfile + " > " + input.bamfile + ".flagstat.txt"
+		cmd = "samtools stats " + input.bamfile + " > " + input.bamfile + ".stats.txt"
 		os.system( cmd )
-		with open(input.bamfile +".flagstat.txt", "r") as I:
-			total_mapped = int(I.readline().split()[0])
-		os.system( "rm " +  input.bamfile +".flagstat.txt")
+		mean_insert_size = "NA"
+		with open(input.bamfile +".stats.txt", "r") as I:
+			for line in I:
+				if line.startswith("SN      reads mapped:"):
+					total_mapped = int(line.strip("\n").split()[-1])
+				if line.startswith("SN	insert size average:"):
+					mean_insert_size = line.strip("\n").split()[-1]
+		os.system( "rm " +  input.bamfile +".stats.txt")
 		# reconstruct the sample name...
 		samplename = input.bamfile.split("/")[1].split(".sorted.bam")[0]
 		# now count all the reads
@@ -292,8 +300,7 @@ rule count_reads_input_and_mapping:
 		n_reads = float(sum_of_read_fastq_lines)/4.0
 		mapping_rate = float(total_mapped)/n_reads
 		with open(str(output), "w") as O:
-			O.write(samplename + "\t" + str(n_reads) + "\t" + str(total_mapped) + "\t" + str(round(mapping_rate,3)) + "\n")
-
+			O.write(samplename + "\t" + str(n_reads) + "\t" + str(total_mapped) + "\t" + str(round(mapping_rate,3)) + "\t" + mean_insert_size + "\n")
 
 rule collect_mapping_report:
 	input:
@@ -302,8 +309,8 @@ rule collect_mapping_report:
 		"results/mapping_statistics_report.txt"
 	shell:
 		"""
-		echo -e "counts are single reads, not pairs of reads" > {output}
-		echo -e "sample\traw_reads\tmapped_reads\tmapping_rate" >> {output}
+		echo -e "counts are single reads, not pairs of reads, i.e. in PE data fwd and rev are counted separately" > {output}
+		echo -e "sample\traw_reads\tmapped_reads\tmapping_rate\tinsert_size_average" >> {output}
 		cat results/*.raw_and_mapped_reads_report.txt >> {output}
 		"""
 
@@ -344,7 +351,7 @@ rule get_raw_parental_counts:
 		type_of_sample = pedigree_map.loc[(wildcards.progeny), ["type_of_sample"]][0]
 
 		outf = open( output[0] , "w")
-		outf.write("\t".join(["chrom","pos","site_type","maternal_count","paternal_count"]) + "\n")
+		outf.write("\t".join(["chrom","pos","site_type","maternal_count","paternal_count","maternal_allele_ID"]) + "\n")
 
 		with gzip.open( input.vcf ,"rt") as I:
 			for line in I:
@@ -362,72 +369,79 @@ rule get_raw_parental_counts:
 						alt_allele = fields[4]
 						mother_gt = fields[mother_idx].split(":")[0]
 						father_gt = fields[father_idx].split(":")[0]
-						progeny_allelic_counts = [int(x) for x in fields[progeny_idx].split(":")[2].split(",")]
-						# if the progeny is not heterozygous:## NO; MUST NOT DO THIS BECAUSE THIS excludes the extreme, perfectly allele-specific case!!
-						if sum(progeny_allelic_counts) < 6: # the sum of counts must be at least 6, otherwise discard
-							outline = [chrom, pos, "progeny_coverage_low", "NA", "NA"]
+						progeny_allelic_counts = [int(x) for x in fields[progeny_idx].split(":")[3].split(",")]
+						# drop entries where parents have no genotypes:
+						if "." in mother_gt + father_gt:
+							continue
+						# if the progeny is low coverage
+						elif sum(progeny_allelic_counts) < 6: # the sum of counts must be at least 6, otherwise discard
+							outline = [chrom, pos, "progeny_coverage_low", "NA", "NA","NA"]
 						else:
 							if mother_gt == father_gt:# so this is 0/0,0/0 or 1/1,1/1 or 0/1,0/1
 								# both parents hom for same alelle should already be impossible but, it can also be that both are het.
 								# if parents are identical, site is not informative for this progeny
-								outline = [chrom, pos, "parents_identical", "NA", "NA"]
+								outline = [chrom, pos, "parents_identical", "NA", "NA", "NA"]
 							elif mother_gt == "0/0" and father_gt == "1/1":
 								# mother and father each homozygous for different alleles, mother's allele here REF
-								outline = [chrom, pos, "parents_reciprocally_hom", progeny_allelic_counts[0], progeny_allelic_counts[1]]
+								outline = [chrom, pos, "parents_reciprocally_hom", progeny_allelic_counts[0], progeny_allelic_counts[1], "REF"]
 							elif mother_gt == "1/1" and father_gt == "0/0":
 								# mother and father each homozygous for different alleles, mother's allele here ALT
-								outline = [chrom, pos, "parents_reciprocally_hom", progeny_allelic_counts[1], progeny_allelic_counts[0]]
+								outline = [chrom, pos, "parents_reciprocally_hom", progeny_allelic_counts[1], progeny_allelic_counts[0], "ALT"]
 							# now dealing with scenario where only one parent is het. See above for the different handling of pools and individuals, the correction.
 							elif type_of_sample == "individual":
 								if progeny_allelic_counts[0] < 3 or progeny_allelic_counts[1] < 3:
 									# in progeny individuals, must see both alleles for such sites to be informative
-									outline = [chrom, pos, "one_parent_het_but_progeny_hom", "NA", "NA"]
+									outline = [chrom, pos, "one_parent_het_but_progeny_hom", "NA", "NA", "NA"]
 								else:
 									if mother_gt == "0/1" and father_gt == "1/1":
 										# mother het and progeny het: mothers' allele is clear, here REF
-										outline = [chrom, pos, "mother_het_father_hom", progeny_allelic_counts[0], progeny_allelic_counts[1]]
+										outline = [chrom, pos, "mother_het_father_hom", progeny_allelic_counts[0], progeny_allelic_counts[1], "REF"]
 									elif mother_gt == "0/1" and father_gt == "0/0":
 										# mother het and progeny het: mothers' allele is clear, here ALT
-										outline = [chrom, pos, "mother_het_father_hom", progeny_allelic_counts[1], progeny_allelic_counts[0]]
+										outline = [chrom, pos, "mother_het_father_hom", progeny_allelic_counts[1], progeny_allelic_counts[0], "ALT"]
 									elif mother_gt == "0/0" and father_gt == "0/1":
 										# father het and progeny het: mothers' allele is clear, here REF
-										outline = [chrom, pos, "mother_hom_father_het", progeny_allelic_counts[0], progeny_allelic_counts[1]]
+										outline = [chrom, pos, "mother_hom_father_het", progeny_allelic_counts[0], progeny_allelic_counts[1], "REF"]
 									elif mother_gt == "1/1" and father_gt == "0/1":
 										# father het and progeny het: mothers' allele is clear, here ALT
-										outline = [chrom, pos, "mother_hom_father_het", progeny_allelic_counts[1], progeny_allelic_counts[0]]
+										outline = [chrom, pos, "mother_hom_father_het", progeny_allelic_counts[1], progeny_allelic_counts[0], "ALT"]
 									else:
-										outline = [chrom, pos, "unclear_problem", "NA", "NA"]
+										outline = [chrom, pos, "unclear_problem", "NA", "NA", "mat_" + mother_gt + "_pat_" + father_gt]
 							elif type_of_sample == "pool": # now we consider informative even if progeny has only 1 allele, and apply a correction factor because both alleles must be present in the genomes of the progeny in the pool.
 								if mother_gt == "0/1":
 									if father_gt == "1/1":
 										# mother het mothers' allele is clear, here RER
 										mat_naive = int(progeny_allelic_counts[0])
 										pat_naive = int(progeny_allelic_counts[1])
+										mat_allele = "REF"
 									elif father_gt == "0/0":
 										# mother het mothers' allele is clear, here ALT
 										mat_naive = int(progeny_allelic_counts[1])
 										pat_naive = int(progeny_allelic_counts[0])
+										mat_allele = "ALT"
 									mat_corrected = mat_naive*2
 									if mat_corrected > mat_naive+pat_naive:
 										mat_corrected = mat_naive+pat_naive
 									pat_corrected = (mat_naive+pat_naive) - mat_corrected
-									outline = [chrom, pos, "mother_het_father_hom_and_pool_correction", mat_corrected, pat_corrected]
+									outline = [chrom, pos, "mother_het_father_hom_and_pool_corrected", mat_corrected, pat_corrected, mat_allele]
 								elif father_gt == "0/1":
 									if mother_gt == "1/1":
 										# mother het mothers' allele is clear, here REF
 										mat_naive = int(progeny_allelic_counts[1])
 										pat_naive = int(progeny_allelic_counts[0])
+										mat_allele = "ALT"
 									elif mother_gt == "0/0":
 										# mother het mothers' allele is clear, here ALT
 										mat_naive = int(progeny_allelic_counts[0])
 										pat_naive = int(progeny_allelic_counts[1])
+										mat_allele = "REF"
 									pat_corrected = pat_naive*2
 									if pat_corrected > mat_naive+pat_naive:
 										pat_corrected = mat_naive+pat_naive
 									mat_corrected = (mat_naive+pat_naive) - pat_corrected
-									outline = [chrom, pos, "mother_hom_father_het_and_pool_correction", mat_corrected, pat_corrected]
+									outline = [chrom, pos, "mother_hom_father_het_and_pool_corrected", mat_corrected, pat_corrected, mat_allele]
 								else:
-									outline = [chrom, pos, "unclear_problem", "NA", "NA"]
+									outline = [chrom, pos, "unclear_problem", "NA", "NA","mat_" + mother_gt + "_pat_" + father_gt]
 		#				print("###")
 		#				print(mother_gt,father_gt,progeny_allelic_counts)
 						outf.write( "\t".join([str(x) for x in outline]) + "\n")
@@ -461,7 +475,6 @@ rule get_gene_level_parental_allele_stats:
 	output:
 		"results/{progeny}.gene_level_parental_allele_stats.txt"
 	run:
-		infile = "results/progeny1.gene_level_parental_allele_stats.txt"
 		expected_maternal_proportion = float( pedigree_map.loc[(wildcards.progeny), ["expected_maternal_proportion"]].iloc[0] )
 		expected_paternal_proportion = 1.0-expected_maternal_proportion
 
@@ -473,6 +486,7 @@ rule get_gene_level_parental_allele_stats:
 		mydata["paternal_expect"] = mydata["rowsum"]*expected_paternal_proportion
 
 		test_res = scipy.stats.chisquare(mydata[["mean_maternal_count","mean_paternal_count"]], mydata[["maternal_expect","paternal_expect"]], ddof=0, axis=1)
+		# or better use: scipy.stats.binomtest(k, n, p=0.5, alternative='two-sided'), but then only applicable to integers! so not at gene level, but SNP level possible.
 
 		# make the output cleaner
 		mydata["mean_maternal_count"] = mydata["mean_maternal_count"].round(2)
