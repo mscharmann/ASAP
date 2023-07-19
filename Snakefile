@@ -519,7 +519,7 @@ rule plot_hist_of_REF_allele_prop:
 		"results/{sample}.REF_allele_proportion_at_heterozygous_sites.pdf"
 	shell:
 		"""
-		vcftools --gzvcf {input} --indv {wildcards.sample} --mac 1 --max-missing 1.0 --recode --stdout | cut -f10 | grep "0/1" | sed 's/\:/\t/g' | awk '{{ if($3>5) print }}' | cut -f4 | sed 's/\,/\t/g' | awk '{{ print $1/($1+$2) }}' > ref_allele_proportions.{wildcards.sample}.txt
+		vcftools --gzvcf {input} --indv {wildcards.sample} --mac 1 --max-missing 1.0 --recode --stdout | cut -f10 | grep "0/1" | sed 's/\:/ /g' | awk '{{ print $4}}' | sed 's/\,/ /g' | awk '{{ if($1+$2>0) print $1/($1+$2) }}' > ref_allele_proportions.{wildcards.sample}.txt
 		Rscript scripts/Rscript_simple_histogram.R ref_allele_proportions.{wildcards.sample}.txt {output}
 		rm ref_allele_proportions.{wildcards.sample}.txt
 		"""
