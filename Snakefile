@@ -48,6 +48,7 @@ def get_fastq_sample_ALL(wildcards):
 rule all:
 	input:
 		expand("results/{progeny}.gene_level_parental_allele_stats.txt", progeny=PROGENIES),
+		expand("results/{sample}.REF_allele_proportion_at_heterozygous_sites.pdf", sample=SAMPLES),
 		"results/mapping_statistics_report.txt"
 	run:
 		import os
@@ -283,7 +284,8 @@ rule count_reads_input_and_mapping:
 		mean_insert_size = "NA"
 		with open(input.bamfile +".stats.txt", "r") as I:
 			for line in I:
-				if line.startswith("SN      reads mapped:"):
+				print (line)
+				if line.startswith("SN	reads mapped:"):
 					total_mapped = int(line.strip("\n").split()[-1])
 				if line.startswith("SN	insert size average:"):
 					mean_insert_size = line.strip("\n").split()[-1]
@@ -510,3 +512,15 @@ rule get_gene_level_parental_allele_stats:
 		mydata["paternal_expect"].mask(mydata["SNPs"] =="0" ,"NA", inplace=True)
 
 		mydata.to_csv(output[0], sep='\t', header=True, index=False)
+
+rule plot_hist_of_REF_allele_prop:
+	input:
+		"results/variants.post_filter.vcf.gz"
+	output:
+		"results/{sample}.REF_allele_proportion_at_heterozygous_sites.pdf"
+	shell:
+		"""
+		vcftools --gzvcf {input} --indv {wildcards.sample} --mac 1 --max-missing 1.0 --recode --stdout | cut -f10 | grep "0/1" | sed 's/\:/\t/g' | awk '{{ if($3>5) print }}' | cut -f4 | sed 's/\,/\t/g' | awk '{{ print $1/($1+$2) }}' > ref_allele_proportions.{wildcards.sample}.txt
+		Rscript scripts/Rscript_simple_histogram.R ref_allele_proportions.{wildcards.sample}.txt {output}
+		rm ref_allele_proportions.{wildcards.sample}.txt
+		"""
